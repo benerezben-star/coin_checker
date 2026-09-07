@@ -1,0 +1,8 @@
+{
+  "appId": "com.wariya.coinchecker",
+  "appName": "Coin Checker",
+  "webDir": "phone",
+  "android": {
+    "allowMixedContent": false
+  }
+}
