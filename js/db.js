@@ -234,7 +234,14 @@ export async function exportAll({ includePhotos = true } = {}) {
   const photos = includePhotos ? await allPhotos() : [];
   const encoded = [];
   for (const p of photos) {
-    encoded.push({ ...p, blob: await blobToDataUrl(p.blob) });
+    encoded.push({
+      ...p,
+      blob: await blobToDataUrl(p.blob),
+      // A Blob does not survive JSON.stringify -- it serialises to {}. Without
+      // this the thumbnail was silently lost, and every restored photo fell
+      // back to decoding the full microscope capture in list views.
+      thumb: p.thumb ? await blobToDataUrl(p.thumb) : null,
+    });
   }
   const [coins, checks, varietyChecks] = await Promise.all([
     listCoins(),
@@ -254,7 +261,7 @@ export async function exportAll({ includePhotos = true } = {}) {
 
 /** Restore a backup. Coins are appended with fresh ids so an import can never
  *  overwrite what is already on the device. */
-export async function importAll(data) {
+export async function importAll(data, { makeThumb = null } = {}) {
   if (data?.format !== "coin_checker_backup") {
     throw new Error("Not a Coin Checker backup file.");
   }
@@ -270,7 +277,18 @@ export async function importAll(data) {
   for (const p of data.photos ?? []) {
     const coinId = idMap.get(p.coin_id);
     if (coinId == null) continue;
-    await addPhoto(coinId, await dataUrlToBlob(p.blob), p.side, p.caption);
+    const blob = await dataUrlToBlob(p.blob);
+    // Backups written before thumbnails were encoded carry no usable thumb,
+    // so rebuild it and restored coins scroll as fast as freshly added ones.
+    let thumb = typeof p.thumb === "string" ? await dataUrlToBlob(p.thumb) : null;
+    if (!thumb && makeThumb) {
+      try {
+        thumb = await makeThumb(blob);
+      } catch {
+        // A thumbnail failure must never lose the restored capture.
+      }
+    }
+    await addPhoto(coinId, blob, p.side, p.caption, thumb);
   }
   for (const c of data.checks ?? []) {
     const coinId = idMap.get(c.coin_id);

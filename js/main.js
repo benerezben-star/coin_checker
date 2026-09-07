@@ -403,29 +403,39 @@ async function viewCoin(id) {
     viewCoin(id);
   };
 
-  view.addEventListener("click", async (e) => {
-    const btn = e.target.closest("button");
-    if (!btn) return;
-
-    if (btn.dataset.delPhoto) {
-      if (!confirm("Delete this photo?")) return;
-      Img.clearCache(Number(btn.dataset.delPhoto));
-      await DB.deletePhoto(Number(btn.dataset.delPhoto));
-      return viewCoin(id);
-    }
-    if (btn.dataset.check) {
-      btn.parentElement.querySelectorAll(".opt").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      btn.closest(".check").className = "check check-" + btn.dataset.value;
-      await DB.setCheck(id, btn.dataset.check, btn.dataset.value);
-    }
-    if (btn.dataset.variety) {
-      btn.parentElement.querySelectorAll(".opt").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      await DB.setVarietyCheck(id, btn.dataset.variety, btn.dataset.value);
-    }
-  });
 }
+
+// Checklist and variety taps are handled here, once, for the whole app rather
+// than per render. Binding this inside viewCoin() left a live listener behind
+// on every visit, each closing over the coin id it was created with -- so one
+// tap wrote the same mark to every coin opened since the app started, and
+// deleting a photo re-rendered whichever coin was visited first. The id comes
+// from the route instead, so only the coin actually on screen is written to.
+view.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button");
+  if (!btn) return;
+  const { part, arg } = parseRoute();
+  if (part !== "coin" || !arg) return;
+  const id = Number(arg);
+
+  if (btn.dataset.delPhoto) {
+    if (!confirm("Delete this photo?")) return;
+    Img.clearCache(Number(btn.dataset.delPhoto));
+    await DB.deletePhoto(Number(btn.dataset.delPhoto));
+    return viewCoin(id);
+  }
+  if (btn.dataset.check) {
+    btn.parentElement.querySelectorAll(".opt").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    btn.closest(".check").className = "check check-" + btn.dataset.value;
+    await DB.setCheck(id, btn.dataset.check, btn.dataset.value);
+  }
+  if (btn.dataset.variety) {
+    btn.parentElement.querySelectorAll(".opt").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    await DB.setVarietyCheck(id, btn.dataset.variety, btn.dataset.value);
+  }
+});
 
 // --- image workbench -----------------------------------------------------
 
@@ -583,7 +593,9 @@ function viewData() {
     if (!file) return;
     status.textContent = "Importing...";
     try {
-      const added = await DB.importAll(JSON.parse(await file.text()));
+      const added = await DB.importAll(JSON.parse(await file.text()), {
+        makeThumb: Img.makeThumbnail,
+      });
       status.textContent = `Imported ${added} coin(s).`;
     } catch (err) {
       status.textContent = "Import failed: " + err.message;
@@ -593,9 +605,14 @@ function viewData() {
 
 // --- router --------------------------------------------------------------
 
-function route() {
+function parseRoute() {
   const hash = location.hash.replace(/^#\/?/, "").split("?")[0];
   const [part, arg] = hash.split("/");
+  return { part, arg };
+}
+
+function route() {
+  const { part, arg } = parseRoute();
   if (part === "new") return viewNew();
   if (part === "coin" && arg) return viewCoin(Number(arg));
   if (part === "scope" && arg) return viewScope(Number(arg));
