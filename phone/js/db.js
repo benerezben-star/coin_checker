@@ -134,12 +134,18 @@ export async function stats() {
 
 // --- photos --------------------------------------------------------------
 
-export async function addPhoto(coinId, blob, side = "obverse", caption = "") {
+export async function addPhoto(
+  coinId, blob, side = "obverse", caption = "", thumb = null
+) {
   const store = await tx("photos", "readwrite");
   return wrap(
     store.add({
       coin_id: coinId,
       blob,
+      // A small JPEG kept alongside the original. List views show hundreds of
+      // images at once; decoding full microscope captures for that would stall
+      // the phone and burn memory.
+      thumb,
       type: blob.type || "image/jpeg",
       size: blob.size,
       side,

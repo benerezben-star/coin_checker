@@ -1,6 +1,6 @@
 // Caches the whole app so it runs with no connection at all.
 // Bump CACHE_VERSION whenever app files change, to force a refresh.
-const CACHE_VERSION = "coin-checker-v1";
+const CACHE_VERSION = "coin-checker-v2";
 
 const ASSETS = [
   "./", "./index.html", "./app.css", "./manifest.json",
