@@ -1,44 +1,19 @@
 # Coin Checker
 
-A local tool for hunting errors in your coin collection and keeping track of
-what you've already looked at. Runs entirely on your own machine — nothing is
-uploaded anywhere.
+A tool for hunting errors in your coin collection and keeping track of what
+you've already looked at. It runs entirely on your phone — nothing is uploaded
+anywhere, and it works with no signal at all.
 
-## Running it
+**Live at:** https://benerezben-star.github.io/coin_checker/
 
-```
-pip install -r requirements.txt
-python run.py
-```
+## Installing it on your phone
 
-It opens `http://127.0.0.1:5000` in your browser. Press Ctrl+C in the terminal
-to stop it.
+Open the link in Chrome on Android, then **⋮ → Add to Home screen**. It
+installs as a normal app icon, opens without browser chrome, and works offline
+from then on — the whole app is cached on the device.
 
-## Using it from your phone
-
-```
-python run.py --lan
-```
-
-It prints an address like `http://192.168.86.21:5000` — type that into your
-phone's browser. The layout adapts to a phone screen, and the checklist buttons
-are sized for thumbs.
-
-Requirements and caveats:
-
-- Phone and PC must be on the **same Wi-Fi**, and the PC must stay on with the
-  terminal window open. The app runs on the PC; the phone is just a screen.
-- The **first run pops a Windows Firewall dialog** — allow it on Private
-  networks. If you miss it, the phone will just time out.
-- Your phone's camera works for uploads. Tapping the file picker offers
-  "Take Photo", so you can shoot a coin and log it without moving files around.
-- **There is no password on the app.** On your home Wi-Fi that's usually fine,
-  but anyone else on the network could open it, so don't run `--lan` on public
-  or shared Wi-Fi. Plain `python run.py` stays local to the PC.
-
-Do not expose this to the open internet with a tunnel service. With no
-authentication, anyone who found the URL would have full delete access to your
-collection.
+To update after a change is deployed, force-close the app and reopen it. A
+service worker update lands on the *next* launch, not the current one.
 
 ## What it does
 
@@ -64,7 +39,7 @@ nickels, dimes, quarters, halves, and dollars.
 
 **3. Guided inspection checklist.** 26 checks in five steps, from whole-coin
 tests that need no microscope through zone-by-zone work at 20–40x. Your
-pass/suspect marks save as you click, so you can stop mid-coin and come back.
+pass/suspect marks save as you tap, so you can stop mid-coin and come back.
 
 **4. Image workbench.** Eight enhancement filters (relief, edge detection,
 unsharp mask, histogram equalize, and others) with two panes side by side, so
@@ -73,6 +48,9 @@ you can put a suspect coin next to a known-normal one at the same zoom.
 **5. Collection catalog.** Every coin with its photos, grade, findings, notes,
 and estimated value. Filter, search, and export to CSV.
 
+Your phone's camera works for photos — the file picker offers "Take Photo", so
+you can shoot a coin and log it without moving files around.
+
 ## What it deliberately does not do
 
 **It will not tell you whether a photo shows a doubled die.** Machine doubling
@@ -80,7 +58,7 @@ and a true doubled die look nearly identical to an algorithm, and one is
 worthless while the other can be worth thousands. A confident wrong answer
 there would cost you real money, so the tool sharpens the image and teaches you
 the distinction instead of guessing. Every coin page carries that comparison,
-and the "Doubling guide" tab in Reference has it in full.
+and the Reference page has it in full.
 
 ## What you need
 
@@ -90,23 +68,23 @@ and the "Doubling guide" tab in Reference has it in full.
 - **A magnet.** Any fridge magnet works.
 - **Your microscope**, for everything visual.
 
-If your microscope saves image files to your PC, just upload them. If it only
-does live video, you can screenshot the preview window and upload that.
+If your microscope saves image files, transfer them to the phone and upload
+them. If it only does live video, photograph the preview screen.
 
 ## Your data
 
-Everything lives in the `instance/` folder:
+Everything lives in your phone's browser storage (IndexedDB) and never leaves
+the device. **This is the only copy.** If you lose the phone, clear the
+browser's site data, or uninstall the app, it is gone.
 
-- `coins.db` — SQLite database of your collection
-- `photos/` — original uploads, untouched
-- `thumbs/`, `cache/` — regenerated automatically, safe to delete
-
-Back up `instance/` and you've backed up everything. Use **Export CSV** for a
-copy you can open in Excel.
+So use **Backup → Export backup (with photos)** regularly and keep the JSON
+file somewhere else. **Export CSV** gives you a spreadsheet copy of the coin
+records without the photos. Restoring adds coins alongside what's already
+there — an import never overwrites or deletes existing coins.
 
 ## Adding to the reference data
 
-The three JSON files in `app/data/` are plain data — no code changes needed:
+The three JSON files in `phone/data/` are plain data — no code changes needed:
 
 - `us_specs.json` — weights, diameters, tolerances, compositions.
   **To support foreign coins**, add entries here with the country's specs and
@@ -116,6 +94,16 @@ The three JSON files in `app/data/` are plain data — no code changes needed:
 
 A variety entry matches on an explicit `years` list, or on a `year_range` for
 ones that span a whole series.
+
+## Deploying a change
+
+```
+./deploy.sh
+```
+
+It bumps the service worker cache version (without that, installed phones keep
+serving the old code), commits, and publishes `phone/` to the `gh-pages`
+branch, which is what the live URL serves. See `deploy.sh` for details.
 
 ## A note on the value figures
 
