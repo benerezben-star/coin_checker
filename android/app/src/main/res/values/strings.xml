@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">Coin Checker</string>
-    <string name="title_activity_main">Coin Checker</string>
-    <string name="package_name">com.wariya.coinchecker</string>
-    <string name="custom_url_scheme">com.wariya.coinchecker</string>
-</resources>

@@ -21,3 +21,10 @@ env/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Capacitor scaffolding (not part of the web app)
+android/
+node_modules/
+package.json
+package-lock.json
+capacitor.config.json
