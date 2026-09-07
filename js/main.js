@@ -42,6 +42,17 @@ function objUrl(blob) {
   liveUrls.push(u);
   return u;
 }
+// Every photo gets a small JPEG companion for list views.
+async function storePhoto(coinId, file, side, caption = "") {
+  let thumb = null;
+  try {
+    thumb = await Img.makeThumbnail(file);
+  } catch {
+    // A thumbnail failure must never lose the original capture.
+  }
+  return DB.addPhoto(coinId, file, side, caption, thumb);
+}
+
 function render(html) {
   liveUrls.forEach(URL.revokeObjectURL);
   liveUrls = [];
@@ -51,8 +62,31 @@ function render(html) {
 
 // --- collection ----------------------------------------------------------
 
+// Filters live in the hash (#/?q=1999&denomination=cent) so the back button
+// and a reload both keep them.
+function listFilters() {
+  const q = location.hash.split("?")[1] ?? "";
+  return Object.fromEntries(new URLSearchParams(q));
+}
+
+function matchesFilters(coin, f) {
+  if (f.denomination && coin.denomination !== f.denomination) return false;
+  if (f.status && coin.status !== f.status) return false;
+  if (f.verdict && coin.verdict !== f.verdict) return false;
+  if (f.q) {
+    const hay = [coin.year, coin.mint_mark, coin.notes, coin.findings,
+                 coin.grade, coin.acquired, coin.country]
+      .join(" ").toLowerCase();
+    if (!hay.includes(f.q.toLowerCase())) return false;
+  }
+  return true;
+}
+
 async function viewList() {
-  const [coins, stats] = await Promise.all([DB.listCoins(), DB.stats()]);
+  const [all, stats] = await Promise.all([DB.listCoins(), DB.stats()]);
+  const f = listFilters();
+  const coins = all.filter((c) => matchesFilters(c, f));
+  const filtering = Object.values(f).some(Boolean);
   const cards = [];
 
   for (const coin of coins) {
@@ -64,7 +98,7 @@ async function viewList() {
       <a class="coin-card ${alerts.length ? "has-alert" : ""}" href="#/coin/${coin.id}">
         <div class="coin-thumb">${
           photos.length
-            ? `<img src="${objUrl(photos[0].blob)}" alt="">`
+            ? `<img src="${objUrl(photos[0].thumb ?? photos[0].blob)}" alt="" loading="lazy">`
             : `<span class="no-photo">no photo</span>`
         }</div>
         <div class="coin-body">
@@ -82,6 +116,12 @@ async function viewList() {
       </a>`);
   }
 
+  const sel = (name, options, blank) =>
+    `<select name="${name}"><option value="">${blank}</option>` +
+    options.map((o) =>
+      `<option value="${o}" ${f[name] === o ? "selected" : ""}>${o[0].toUpperCase() + o.slice(1).replace("_", " ")}</option>`
+    ).join("") + `</select>`;
+
   render(`
     <div class="stats">
       <div class="stat"><span class="stat-num">${stats.total}</span><span class="stat-label">coins</span></div>
@@ -89,14 +129,42 @@ async function viewList() {
       <div class="stat stat-warn"><span class="stat-num">${stats.suspects}</span><span class="stat-label">suspects</span></div>
       <div class="stat stat-good"><span class="stat-num">${stats.confirmed}</span><span class="stat-label">confirmed</span></div>
     </div>
+    ${all.length ? `
+      <form class="filterbar" id="filters">
+        <input type="search" name="q" placeholder="Search year, mint mark, notes..." value="${esc(f.q ?? "")}">
+        ${sel("denomination", Specs.denominations(), "All denominations")}
+        ${sel("status", ["unchecked", "in_progress", "checked"], "Any status")}
+        ${sel("verdict", ["none", "suspect", "confirmed_error", "ruled_out"], "Any verdict")}
+        <button type="submit">Filter</button>
+        ${filtering ? `<button type="button" class="btn-ghost" id="clear-filters">Clear</button>` : ""}
+      </form>
+      ${filtering ? `<p class="muted">${coins.length} of ${all.length} coins</p>` : ""}` : ""}
     ${
       coins.length
         ? `<div class="coin-grid">${cards.join("")}</div>`
+        : all.length
+        ? `<div class="empty"><h2>No matches</h2>
+             <p>No coins match those filters.</p>
+             <p><a class="btn-ghost" href="#/">Clear filters</a></p></div>`
         : `<div class="empty"><h2>No coins yet</h2>
              <p>Add your first coin to start checking it. Denomination is the only
              required field &mdash; year, mint mark, and weight can come later.</p>
              <p><a class="btn-primary" href="#/new">+ Add your first coin</a></p></div>`
     }`);
+
+  const form = document.getElementById("filters");
+  if (form) {
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const params = new URLSearchParams();
+      for (const [k, v] of new FormData(e.target)) if (v) params.set(k, v);
+      const query = params.toString();
+      location.hash = query ? `#/?${query}` : "#/";
+      viewList();
+    };
+    const clear = document.getElementById("clear-filters");
+    if (clear) clear.onclick = () => { location.hash = "#/"; viewList(); };
+  }
 }
 
 // --- add / edit ----------------------------------------------------------
@@ -202,7 +270,7 @@ async function viewNew() {
     const id = await DB.createCoin(data);
     const files = e.target.querySelector('input[name="photos"]').files;
     const side = new FormData(e.target).get("photo_side");
-    for (const file of files) await DB.addPhoto(id, file, side);
+    for (const file of files) await storePhoto(id, file, side);
     location.hash = `#/coin/${id}`;
   });
 }
@@ -303,7 +371,7 @@ async function viewCoin(id) {
       <div class="photo-grid">
         ${photos.map((p) => `
           <figure class="photo">
-            <img src="${objUrl(p.blob)}" alt="">
+            <img src="${objUrl(p.thumb ?? p.blob)}" alt="" loading="lazy">
             <figcaption><span class="tag">${esc(p.side)}</span> ${esc(p.caption)}
               <button class="link-danger" data-del-photo="${p.id}">delete</button></figcaption>
           </figure>`).join("") || `<p class="muted">No photos yet.</p>`}
@@ -330,7 +398,7 @@ async function viewCoin(id) {
     e.preventDefault();
     const f = new FormData(e.target);
     for (const file of e.target.querySelector('input[type=file]').files) {
-      await DB.addPhoto(id, file, f.get("side"), f.get("caption") || "");
+      await storePhoto(id, file, f.get("side"), f.get("caption") || "");
     }
     viewCoin(id);
   };
@@ -526,7 +594,7 @@ function viewData() {
 // --- router --------------------------------------------------------------
 
 function route() {
-  const hash = location.hash.replace(/^#\/?/, "");
+  const hash = location.hash.replace(/^#\/?/, "").split("?")[0];
   const [part, arg] = hash.split("/");
   if (part === "new") return viewNew();
   if (part === "coin" && arg) return viewCoin(Number(arg));
