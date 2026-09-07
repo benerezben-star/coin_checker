@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Reference{% endblock %}
+{% block content %}
+
+<h1>Reference</h1>
+
+<div class="tabs">
+  <button class="tab active" data-tab="#tab-varieties">Known varieties</button>
+  <button class="tab" data-tab="#tab-checklist">Inspection checklist</button>
+  <button class="tab" data-tab="#tab-doubling">Doubling guide</button>
+  <button class="tab" data-tab="#tab-damage">Not errors</button>
+  <button class="tab" data-tab="#tab-specs">Mint specs</button>
+</div>
+
+<!-- varieties -->
+<section id="tab-varieties" class="tab-panel">
+  <form class="filterbar" method="get">
+    <input type="search" name="q" placeholder="Search varieties: doubled die, wide AM, 1982..." value="{{ query }}">
+    <button type="submit">Search</button>
+    <a class="btn-ghost" href="{{ url_for('main.reference') }}">Show all</a>
+  </form>
+  <p class="muted">{{ results|length }} variet{{ 'y' if results|length == 1 else 'ies' }}</p>
+
+  {% for v in results %}
+    <article class="variety variety-{{ v.severity }}">
+      <header>
+        <h3>{{ v.name }}</h3>
+        <span class="sev sev-{{ v.severity }}">{{ v.severity }}</span>
+      </header>
+      <p class="variety-type">{{ v.denomination|title }} &middot; {{ v.type }} &middot; <em>{{ v.where }}</em></p>
+      <p><strong>Look for:</strong> {{ v.look_for }}</p>
+      <p class="mag">Magnification: {{ v.magnification }}</p>
+      {% if v.beware %}<p class="beware"><strong>Beware:</strong> {{ v.beware }}</p>{% endif %}
+      {% if v.value_note %}<p class="value"><strong>Value:</strong> {{ v.value_note }}</p>{% endif %}
+    </article>
+  {% endfor %}
+</section>
+
+<!-- checklist -->
+<section id="tab-checklist" class="tab-panel hidden">
+  {% for zone in zones %}
+    <div class="card">
+      <h3>{{ zone.name }}</h3>
+      {% for check in zone.checks %}
+        <div class="check check-todo">
+          <div class="check-main">
+            <strong>{{ check.label }}</strong>
+            <p>{{ check.detail }}</p>
+            {% if check.finds %}
+              <p class="finds">{% for f in check.finds %}<span class="chip">{{ f }}</span>{% endfor %}</p>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</section>
+
+<!-- doubling -->
+<section id="tab-doubling" class="tab-panel hidden">
+  <div class="card card-lesson">
+    <h2>{{ lesson.title }}</h2>
+    <p class="why">{{ lesson.why }}</p>
+    <div class="two-col">
+      <div>
+        <h4>Machine doubling &mdash; worthless</h4>
+        <ul>{% for item in lesson.machine_doubling %}<li>{{ item }}</li>{% endfor %}</ul>
+      </div>
+      <div>
+        <h4>True doubled die &mdash; valuable</h4>
+        <ul>{% for item in lesson.true_doubled_die %}<li>{{ item }}</li>{% endfor %}</ul>
+      </div>
+    </div>
+    <p class="test"><strong>The test:</strong> {{ lesson.test }}</p>
+  </div>
+</section>
+
+<!-- damage -->
+<section id="tab-damage" class="tab-panel hidden">
+  <div class="card">
+    <h2>{{ damage.title }}</h2>
+    {% for item in damage['items'] %}
+      <div class="finding finding-warn">
+        <strong>{{ item.name }}</strong>
+        <p>{{ item.why }}</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- specs -->
+<section id="tab-specs" class="tab-panel hidden">
+  <div class="card">
+    <h2>US Mint specifications</h2>
+    <div class="table-scroll">
+    <table class="spec-table">
+      <tr><th>Series</th><th>Years</th><th>Weight</th><th>Diameter</th><th>Composition</th><th>Edge</th></tr>
+      {% for s in series %}
+        <tr>
+          <td>{{ s.display }}</td>
+          <td>{{ s.year_start }}&ndash;{{ s.year_end if s.year_end < 2100 else 'date' }}</td>
+          <td>{{ s.weight_g }}g &plusmn;{{ s.tolerance_g }}</td>
+          <td>{{ s.diameter_mm }}mm</td>
+          <td>{{ s.composition }}</td>
+          <td>{{ s.edge }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

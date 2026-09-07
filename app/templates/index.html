@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="stats">
+  <div class="stat"><span class="stat-num">{{ stats.total or 0 }}</span><span class="stat-label">coins</span></div>
+  <div class="stat"><span class="stat-num">{{ stats.unchecked or 0 }}</span><span class="stat-label">unchecked</span></div>
+  <div class="stat stat-warn"><span class="stat-num">{{ stats.suspects or 0 }}</span><span class="stat-label">suspects</span></div>
+  <div class="stat stat-good"><span class="stat-num">{{ stats.confirmed or 0 }}</span><span class="stat-label">confirmed errors</span></div>
+  <div class="stat"><span class="stat-num">${{ '%.2f'|format(stats.value or 0) }}</span><span class="stat-label">est. value</span></div>
+</div>
+
+<form class="filterbar" method="get">
+  <input type="search" name="q" placeholder="Search year or notes..." value="{{ filters.get('q','') }}">
+  <select name="denomination">
+    <option value="">All denominations</option>
+    {% for d in denominations %}
+      <option value="{{ d }}" {% if filters.get('denomination') == d %}selected{% endif %}>{{ d|title }}</option>
+    {% endfor %}
+  </select>
+  <select name="status">
+    <option value="">Any status</option>
+    {% for s in ['unchecked','in_progress','checked'] %}
+      <option value="{{ s }}" {% if filters.get('status') == s %}selected{% endif %}>{{ s.replace('_',' ')|title }}</option>
+    {% endfor %}
+  </select>
+  <select name="verdict">
+    <option value="">Any verdict</option>
+    {% for v in ['none','suspect','confirmed_error','ruled_out'] %}
+      <option value="{{ v }}" {% if filters.get('verdict') == v %}selected{% endif %}>{{ v.replace('_',' ')|title }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit">Filter</button>
+  <a class="btn-ghost" href="{{ url_for('main.index') }}">Reset</a>
+</form>
+
+{% if not rows %}
+  <div class="empty">
+    <h2>No coins yet</h2>
+    <p>Add your first coin to start checking it. You only need the denomination
+       to begin &mdash; year, mint mark, and weight can come later.</p>
+    <p><a class="btn-primary" href="{{ url_for('main.new_coin') }}">+ Add your first coin</a></p>
+  </div>
+{% endif %}
+
+<div class="coin-grid">
+  {% for row in rows %}
+    {% set coin = row.coin %}
+    <a class="coin-card {% if row.alerts %}has-alert{% endif %}" href="{{ url_for('main.coin_detail', coin_id=coin.id) }}">
+      <div class="coin-thumb">
+        {% if row.thumb %}
+          <img src="{{ url_for('main.thumb', name=row.thumb) }}" alt="">
+        {% else %}
+          <span class="no-photo">no photo</span>
+        {% endif %}
+      </div>
+      <div class="coin-body">
+        <h3>{{ coin.year or '????' }}{% if coin.mint_mark %}-{{ coin.mint_mark }}{% endif %}
+            {{ coin.denomination|title }}</h3>
+        <p class="coin-meta">
+          {{ coin.country }}
+          {% if coin.weight_g %} &middot; {{ '%.2f'|format(coin.weight_g) }}g{% endif %}
+          {% if coin.grade %} &middot; {{ coin.grade }}{% endif %}
+        </p>
+
+        {% for alert in row.alerts[:2] %}
+          <p class="badge badge-alert">{{ alert.title }}</p>
+        {% endfor %}
+
+        {% if row.variety_count %}
+          <p class="badge badge-info">{{ row.variety_count }} variet{{ 'y' if row.variety_count == 1 else 'ies' }} to check</p>
+        {% endif %}
+
+        <p class="coin-tags">
+          <span class="tag tag-{{ coin.status }}">{{ coin.status.replace('_',' ') }}</span>
+          {% if coin.verdict != 'none' %}
+            <span class="tag tag-{{ coin.verdict }}">{{ coin.verdict.replace('_',' ') }}</span>
+          {% endif %}
+        </p>
+      </div>
+    </a>
+  {% endfor %}
+</div>
+
+{% endblock %}

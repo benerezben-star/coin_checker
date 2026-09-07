@@ -1,0 +1,23 @@
+# Your collection: the database, your microscope photos, and generated
+# thumbnails and filter caches. This is your data, not the app's code -- keep
+# it off GitHub, especially on a public repo. Back it up separately.
+instance/
+
+# Belt and braces, in case a database ends up outside instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

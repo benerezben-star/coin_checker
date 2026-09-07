@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Image workbench{% endblock %}
+{% block content %}
+
+<div class="detail-head">
+  <div>
+    <h1>Image workbench</h1>
+    <p class="coin-meta">{{ coin.year or '????' }}{% if coin.mint_mark %}-{{ coin.mint_mark }}{% endif %}
+      {{ coin.denomination|title }} &middot; compare against a known-normal example</p>
+  </div>
+  <a class="btn-ghost" href="{{ url_for('main.coin_detail', coin_id=coin.id) }}">Back to coin</a>
+</div>
+
+{% if not photos %}
+  <div class="empty">
+    <h2>No photos on this coin yet</h2>
+    <p>Upload microscope captures on the coin page, then come back here to
+       enhance and compare them.</p>
+    <p><a class="btn-primary" href="{{ url_for('main.coin_detail', coin_id=coin.id) }}">Go add photos</a></p>
+  </div>
+{% else %}
+
+<div class="card">
+  <div class="zoom-row">
+    <label>Zoom both panes
+      <input id="zoom" type="range" min="100" max="600" value="100" step="10">
+      <span id="zoom-val">100%</span>
+    </label>
+    <p class="muted">Tip: put your suspect coin on the left and a known-normal
+      coin of the same year on the right. Most suspected errors disappear at
+      this step &mdash; and that is the check doing its job.</p>
+  </div>
+</div>
+
+<div class="workbench">
+  {% for pane in ['a', 'b'] %}
+    <div class="pane" data-pane="{{ pane }}">
+      <div class="pane-controls">
+        <select class="pane-photo">
+          <optgroup label="This coin">
+            {% for p in photos %}
+              <option value="{{ p.id }}">{{ p.side }}{% if p.caption %} &mdash; {{ p.caption }}{% endif %}</option>
+            {% endfor %}
+          </optgroup>
+          <optgroup label="Other {{ coin.denomination }}s in your collection">
+            {% for p in all_photos %}
+              {% if p.coin_id != coin.id %}
+                <option value="{{ p.id }}">{{ p.year or '????' }}{{ p.mint_mark }} &mdash; {{ p.side }}{% if p.caption %} ({{ p.caption }}){% endif %}</option>
+              {% endif %}
+            {% endfor %}
+          </optgroup>
+        </select>
+        <select class="pane-filter">
+          {% for key, meta in filters.items() %}
+            <option value="{{ key }}">{{ meta.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="pane-viewport">
+        <img class="pane-img" src="" alt="">
+      </div>
+      <p class="pane-help muted"></p>
+    </div>
+  {% endfor %}
+</div>
+
+<section class="card card-lesson">
+  <h2>{{ lesson.title }}</h2>
+  <div class="two-col">
+    <div>
+      <h4>Machine doubling &mdash; worthless</h4>
+      <ul>{% for item in lesson.machine_doubling %}<li>{{ item }}</li>{% endfor %}</ul>
+    </div>
+    <div>
+      <h4>True doubled die &mdash; valuable</h4>
+      <ul>{% for item in lesson.true_doubled_die %}<li>{{ item }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+  <p class="test"><strong>The test:</strong> {{ lesson.test }}</p>
+</section>
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.FILTER_HELP = {{ filters | tojson }};
+  window.FILTER_URL = "{{ url_for('main.filtered', photo_id=0, filter_name='ZZZ') }}";
+</script>
+<script src="{{ url_for('static', filename='scope.js') }}"></script>
+{% endblock %}
